@@ -1,36 +1,13 @@
 import { Circle, Polygon, Tooltip } from 'react-leaflet';
 
+import type { Geofence } from '@/types';
+
 /**
  * Capa de geocercas.
  *
- * ⚠ El backend `servidor-trackar` NO soporta geocercas: no hay tabla ni
- * endpoint (`GET /api/geofences`). Este componente deja la capa LISTA para
- * cuando exista, sin inventar datos (requisito 16/35).
- *
- * Contrato propuesto para el backend:
- *   GET /api/geofences
- *   -> { success: true, geofences: [{ id, name, type: 'circle'|'polygon',
- *        center?: {lat,lng}, radiusMeters?: number,
- *        points?: [{lat,lng}], color?: string }] }
+ * Renderiza las zonas devueltas por `GET /api/geofences` (círculos y
+ * polígonos) superpuestas al mapa.
  */
-
-export interface Geofence {
-  id: string;
-  name: string;
-  type: 'circle' | 'polygon';
-  center?: { lat: number; lng: number };
-  radiusMeters?: number;
-  points?: Array<{ lat: number; lng: number }>;
-  color?: string;
-}
-
-export const GEOFENCES_ENDPOINT_CONTRACT = {
-  method: 'GET',
-  path: '/api/geofences',
-  auth: 'API Key (Bearer o X-API-Key)',
-  response: '{ success: true, geofences: Geofence[] }',
-} as const;
-
 export function GeofenceLayer({ geofences }: { geofences: Geofence[] }) {
   if (geofences.length === 0) return null;
 

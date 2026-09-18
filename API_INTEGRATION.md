@@ -21,9 +21,10 @@ Backend: servidor-trackar (Vercel Functions + Supabase)
    ├── Positions ........... GET /api/positions/:deviceId    (API Key)
    │                         GET /api/positions/:deviceId/latest (API Key)
    ├── Ingesta ............. POST/GET /api/gps               (API Key)  ← solo Traccar Client
-   ├── Events .............. ❌ NO EXISTE
-   ├── Statistics .......... ❌ NO EXISTE
-   ├── Geofences ........... ❌ NO EXISTE
+   ├── Events .............. GET /api/events                (API Key)
+   ├── Statistics .......... GET /api/statistics            (API Key)
+   ├── Geofences ........... GET /api/geofences             (API Key)
+   ├── Dispositivos ........ PUT/DELETE /api/devices/:id    (API Key)
    └── Realtime ............ ❌ NO EXISTE (ni WebSocket, ni SSE, ni MQTT)
                                      │
                                      ▼
@@ -36,8 +37,8 @@ Frontend: servidor-trackar-front (React + Vite + TS)
    ├── /dispositivos/:id . Detalle    ← GET /api/devices + /api/positions/:id/latest
    ├── /historial ........ History    ← GET /api/positions/:deviceId?from&to&limit
    ├── /estadisticas ..... Statistics ← historial (cálculo en cliente)
-   ├── /eventos .......... preparado  ← requiere GET /api/events   (documentado abajo)
-   ├── /geocercas ........ preparado  ← requiere GET /api/geofences (documentado abajo)
+   ├── /eventos .......... Events     ← GET /api/events
+   ├── /geocercas ........ Geocercas  ← GET /api/geofences
    └── /configuracion .... preferencias locales + diagnóstico
 ```
 
@@ -265,17 +266,23 @@ Detalles en `src/hooks/useDevicesPolling.ts`:
 
 ---
 
-## 6. Funcionalidades solicitadas que el backend NO ofrece
+## 6. Funcionalidades del backend
 
-Todas ellas tienen la **interfaz ya creada** y quedan documentadas aquí, sin datos
-simulados (requisitos 16, 35).
+> **Actualización (septiembre 2026):** el backend ya implementa eventos,
+> estadísticas, geocercas y gestión de dispositivos, y el frontend las consume.
+> Los contratos de esta sección coinciden con lo implementado; las antiguas
+> marcas «❌ no existe» están resueltas. Sigue sin haber notificaciones push ni
+> autenticación multiusuario.
 
-### 6.1 Eventos y alertas — `GET /api/events` ❌
+Todas ellas se apoyan en datos reales (nada simulado).
 
-No existe tabla ni endpoint. No hay detección de exceso de velocidad, geocercas,
-movimiento/detención, pérdida de GPS ni desconexión.
+### 6.1 Eventos y alertas — `GET /api/events` ✅
 
-**Página `/eventos`:** filtros y tabla listos; estado vacío explicativo.
+Implementado. El backend **deriva** los eventos del historial real
+(`gps_positions`) y del último contacto de cada dispositivo
+(`devices.last_seen_at`): no existe una tabla de eventos.
+
+**Página `/eventos`:** filtros y tabla conectados a datos reales.
 
 **Contrato propuesto:**
 
@@ -304,14 +311,15 @@ Authorization: Bearer <API_KEY>
 **Alternativa sin nueva tabla:** calcular los eventos al vuelo desde `gps_positions`
 (velocidad > umbral, brecha > N minutos entre posiciones, `battery <= 20`…).
 
-**Mientras no exista:** la campana del header muestra *alertas derivadas en el cliente*
-(`source: 'derived'`) a partir de datos reales: dispositivo offline, `speed > 100` y
-`battery <= 20`. Están etiquetadas como derivadas para no aparentar que vienen del servidor.
+**Nota:** la campana del header sigue mostrando *alertas en vivo derivadas en el cliente*
+(`source: 'derived'`) a partir de datos reales (dispositivo offline, exceso de velocidad,
+batería baja); el historial completo está en `/eventos`.
 
-### 6.2 Estadísticas — `GET /api/statistics` ❌
+### 6.2 Estadísticas — `GET /api/statistics` ✅
 
-No existe. Las métricas se calculan en el cliente
-(`src/utils/statistics.ts`, `src/api/statistics.ts`) desde el historial real:
+Implementado (por dispositivo). El frontend sigue agregando la flota en el cliente
+a partir del historial real (`src/utils/statistics.ts`, `src/api/statistics.ts`),
+cuya lógica replica la del servidor:
 
 - distancia (Haversine entre puntos consecutivos, descartando saltos > 350 km/h),
 - velocidad máxima / promedio (ponderada por tiempo),
@@ -328,9 +336,10 @@ GET /api/statistics?deviceId=<id>&from=<ISO>&to=<ISO>
       "movingSeconds": 0, "stoppedSeconds": 0 } }
 ```
 
-### 6.3 Geocercas — `GET /api/geofences` ❌
+### 6.3 Geocercas — `GET /api/geofences` ✅
 
-Sin tabla ni endpoint. La capa `GeofenceLayer` ya soporta círculos y polígonos.
+Implementado. Las zonas se guardan en la tabla `geofences` y `GeofenceLayer` las
+dibuja sobre el mapa (círculos y polígonos).
 
 ```
 GET /api/geofences
@@ -345,10 +354,10 @@ GET /api/geofences
 }
 ```
 
-### 6.4 Gestión de dispositivos ❌
+### 6.4 Gestión de dispositivos ✅ (`PUT`/`DELETE`)
 
-No hay endpoints de alta, edición, baja ni activación/desactivación. El botón *Editar* de
-`/dispositivos` abre un modal que documenta el contrato necesario:
+Implementado: el botón *Editar* de `/dispositivos` permite renombrar, cambiar el
+`uniqueId`, activar/desactivar y eliminar el dispositivo. Contrato:
 
 ```
 PUT /api/devices/:deviceId

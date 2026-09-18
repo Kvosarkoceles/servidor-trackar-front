@@ -64,6 +64,19 @@ export interface DevicesResponse {
   devices: Device[];
 }
 
+/** Respuesta de `PUT /api/devices/:deviceId`. */
+export interface DeviceResponse {
+  success: true;
+  device: Device;
+}
+
+/** Campos editables de un dispositivo (`PUT /api/devices/:deviceId`). */
+export interface DeviceUpdateInput {
+  name?: string | null;
+  uniqueId?: string | null;
+  active?: boolean;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Posiciones                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -136,12 +149,10 @@ export interface DeviceWithStatus extends Device {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Categorías de evento del backend.
+ * Categorías de evento que devuelve `GET /api/events`.
  *
- * IMPORTANTE: el backend actual NO expone ningún endpoint de eventos.
- * Estas categorías corresponden a lo que sería posible derivar de los datos
- * ya disponibles, pero NO se inventan datos: la página /eventos muestra un
- * estado vacío documentado hasta que exista `GET /api/events`.
+ * El backend las deriva del historial real de posiciones (`gps_positions`) y
+ * del último contacto de cada dispositivo (`devices.last_seen_at`).
  */
 export type GpsEventType =
   | 'overspeed'
@@ -163,6 +174,13 @@ export interface GpsEvent {
   message: string;
 }
 
+/** Respuesta de `GET /api/events`. */
+export interface EventsResponse {
+  success: true;
+  count: number;
+  events: GpsEvent[];
+}
+
 /**
  * Alertas mostradas en la campana del header.
  *
@@ -181,6 +199,32 @@ export interface Alert {
   severity: 'info' | 'warning' | 'critical';
   source: 'derived' | 'server';
   read: boolean;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Geocercas                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/** Punto geográfico compacto (formato de `GET /api/geofences`). */
+export interface GeofencePoint {
+  lat: number;
+  lng: number;
+}
+
+/** Zona devuelta por `GET /api/geofences`. */
+export interface Geofence {
+  id: string;
+  name: string;
+  type: 'circle' | 'polygon';
+  center?: GeofencePoint;
+  radiusMeters?: number;
+  points?: GeofencePoint[];
+  color?: string | null;
+}
+
+export interface GeofencesResponse {
+  success: true;
+  geofences: Geofence[];
 }
 
 /* -------------------------------------------------------------------------- */

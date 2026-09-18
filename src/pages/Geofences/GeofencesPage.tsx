@@ -1,24 +1,59 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Shapes, ServerCog } from 'lucide-react';
 
 import { ClusterLayer } from '@/components/maps/ClusterLayer';
-import { GeofenceLayer, GEOFENCES_ENDPOINT_CONTRACT } from '@/components/maps/GeofenceLayer';
+import { GeofenceLayer } from '@/components/maps/GeofenceLayer';
 import { Card, CardBody, CardHeader } from '@/components/ui/Card';
-import { InfoNote } from '@/components/ui/Feedback';
+import { EmptyState, ErrorState, InfoNote } from '@/components/ui/Feedback';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { MapView } from '@/components/maps/MapView';
+import { GEOFENCES_ENDPOINT_CONTRACT, listGeofences } from '@/api/geofences';
 import { useDevicesStore } from '@/stores/devicesStore';
+import { toAppError, logError, type AppError } from '@/utils/errors';
+import type { Geofence } from '@/types';
 
 /**
  * Geocercas (requisito 16).
  *
- * ⚠ El backend NO soporta geocercas (ni tabla ni endpoint). La página muestra
- * el mapa real con los dispositivos y la capa de geocercas preparada
- * (`GeofenceLayer`), que renderizaría círculos y polígonos en cuanto existan
- * datos. No se dibujan zonas inventadas.
+ * Datos reales de `GET /api/geofences`: la capa `GeofenceLayer` dibuja los
+ * círculos y polígonos almacenados en el backend sobre el mapa con los
+ * dispositivos.
  */
 export function GeofencesPage() {
   const devices = useDevicesStore((state) => state.devices);
   const selectDevice = useDevicesStore((state) => state.selectDevice);
   const selectedId = useDevicesStore((state) => state.selectedDeviceId);
+
+  const [geofences, setGeofences] = useState<Geofence[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<AppError | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
+
+  const loadGeofences = useCallback(async () => {
+    controllerRef.current?.abort();
+    const controller = new AbortController();
+    controllerRef.current = controller;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      setGeofences(await listGeofences(controller.signal));
+    } catch (caught) {
+      const appError = (caught as AppError)?.kind ? (caught as AppError) : toAppError(caught);
+      if (appError.kind === 'canceled') return;
+      logError('GeofencesPage', caught);
+      setError(appError);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadGeofences();
+  }, [loadGeofences]);
+
+  useEffect(() => () => controllerRef.current?.abort(), []);
 
   const points = devices
     .filter((device) => device.coordinates !== null)
@@ -33,29 +68,75 @@ export function GeofencesPage() {
         </p>
       </div>
 
-      <InfoNote title="Funcionalidad pendiente en el backend">
-        El backend no almacena geocercas ni expone un endpoint para consultarlas. La capa de dibujo
-        (<span className="font-mono">GeofenceLayer</span>) ya soporta círculos, polígonos y etiquetas,
-        de modo que se activará en cuanto el backend devuelva datos.
+      <InfoNote title="Zonas servidas por el backend">
+        Las geocercas se leen de la tabla <span className="font-mono">geofences</span> a través de{' '}
+        <span className="font-mono">GET /api/geofences</span>. La capa dibuja círculos y polígonos
+        (con su color y etiqueta) superpuestos al mapa de dispositivos.
       </InfoNote>
+
+      <Card>
+        <CardHeader
+          title="Zonas configuradas"
+          subtitle={`${geofences.length} ${geofences.length === 1 ? 'geocerca activa' : 'geocercas activas'}`}
+          icon={<Shapes className="h-4 w-4" />}
+        />
+
+        {loading ? (
+          <CardBody>
+            <Skeleton className="h-16 w-full" />
+          </CardBody>
+        ) : error ? (
+          <ErrorState
+            message={error.message}
+            detail={error.detail}
+            onRetry={() => void loadGeofences()}
+          />
+        ) : geofences.length === 0 ? (
+          <EmptyState
+            icon={<Shapes className="h-5 w-5" />}
+            title="Sin geocercas configuradas"
+            description="Añade zonas (círculos o polígonos) a la tabla geofences del backend para verlas dibujadas sobre el mapa."
+          />
+        ) : (
+          <CardBody className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {geofences.map((zone) => (
+              <div key={zone.id} className="rounded-lg border border-line p-3">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: zone.color ?? '#2f83f6' }}
+                    aria-hidden
+                  />
+                  <p className="truncate text-sm font-medium text-content">{zone.name}</p>
+                </div>
+                <p className="mt-1 text-[11px] text-content-muted">
+                  {zone.type === 'circle'
+                    ? `Círculo · radio ${zone.radiusMeters ?? '—'} m`
+                    : `Polígono · ${zone.points?.length ?? 0} vértices`}
+                </p>
+              </div>
+            ))}
+          </CardBody>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <Card className="overflow-hidden xl:col-span-3">
           <CardHeader
             title="Mapa de zonas"
-            subtitle={`${devices.length} dispositivos · 0 geocercas configuradas`}
+            subtitle={`${devices.length} dispositivos · ${geofences.length} geocercas`}
             icon={<Shapes className="h-4 w-4" />}
           />
           <div className="h-[520px]">
             <MapView className="h-full rounded-none" fitPoints={points} autoFit>
               <ClusterLayer devices={devices} selectedId={selectedId} onSelect={selectDevice} />
-              <GeofenceLayer geofences={[]} />
+              <GeofenceLayer geofences={geofences} />
             </MapView>
           </div>
         </Card>
 
         <Card>
-          <CardHeader title="Contrato pendiente" icon={<ServerCog className="h-4 w-4" />} />
+          <CardHeader title="Contrato del endpoint" icon={<ServerCog className="h-4 w-4" />} />
           <CardBody className="space-y-3">
             <pre className="overflow-x-auto rounded-lg border border-line bg-surface p-3 font-mono text-[11px] leading-relaxed text-content-muted">
 {`${GEOFENCES_ENDPOINT_CONTRACT.method} ${GEOFENCES_ENDPOINT_CONTRACT.path}

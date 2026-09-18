@@ -9,6 +9,7 @@ import { Field, Input, Select } from '@/components/ui/Field';
 import { SkeletonChart } from '@/components/ui/Skeleton';
 import { Table } from '@/components/tables/Table';
 import { getFleetAggregate, lastDaysRange, todayRange, type FleetAggregate } from '@/api/statistics';
+import { useEventCounts } from '@/hooks/useEventCounts';
 import { useDeviceHistory } from '@/hooks/useDeviceHistory';
 import { useDevicesStore } from '@/stores/devicesStore';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -28,10 +29,9 @@ const PERIODS = [
 /**
  * Estadísticas (requisito 12).
  *
- * ⚠ El backend no tiene endpoint de estadísticas: todas las métricas se derivan
- * del historial real de posiciones (`GET /api/positions/:deviceId`). Se puede
- * analizar un dispositivo concreto o agregar el parque (limitado por
- * `VITE_DASHBOARD_MAX_DEVICES` para no saturar el backend).
+ * Las métricas se derivan del historial real de posiciones
+ * (`GET /api/positions/:deviceId`) para un dispositivo o para todo el parque, y
+ * los eventos proceden de `GET /api/events`.
  */
 export function StatisticsPage() {
   const devices = useDevicesStore((state) => state.devices);
@@ -62,6 +62,17 @@ export function StatisticsPage() {
   }, [period, customFrom, customTo]);
 
   const isSingle = deviceId !== 'all';
+
+  // Eventos reales del backend para el rango y dispositivo seleccionados.
+  const eventFilters = useMemo(
+    () => ({
+      from: range.from.toISOString(),
+      to: range.to.toISOString(),
+      deviceId: isSingle ? deviceId : null,
+    }),
+    [range, isSingle, deviceId],
+  );
+  const { counts: eventCounts, loading: eventsLoading } = useEventCounts(eventFilters);
 
   // --- Un solo dispositivo ---
   const single = useDeviceHistory({
@@ -297,15 +308,19 @@ export function StatisticsPage() {
         <Card>
           <CardHeader
             title="Eventos"
-            subtitle="Requiere GET /api/events en el backend"
+            subtitle="Detectados por el backend en el periodo"
             icon={<Activity className="h-4 w-4" />}
           />
           <CardBody>
-            <CategoryBarChart
-              data={[]}
-              emptyTitle="Sin endpoint de eventos"
-              emptyDescription="El backend no registra eventos (exceso de velocidad, geocercas, detenciones), por lo que no hay datos que graficar."
-            />
+            {eventsLoading ? (
+              <SkeletonChart />
+            ) : (
+              <CategoryBarChart
+                data={eventCounts}
+                emptyTitle="Sin eventos en el periodo"
+                emptyDescription="El backend no ha detectado eventos (exceso de velocidad, detenciones, batería baja, pérdida de GPS o desconexión) para el filtro seleccionado."
+              />
+            )}
           </CardBody>
         </Card>
       </div>

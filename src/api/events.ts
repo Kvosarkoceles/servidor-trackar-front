@@ -1,26 +1,18 @@
 /**
- * Eventos.
+ * Eventos y alertas.
  *
- * ⚠ El backend `servidor-trackar` NO expone ningún endpoint de eventos: la
- * tabla `gps_positions` guarda posición/velocidad/rumbo/batería y `devices` la
- * última posición. No hay detección de exceso de velocidad, geocercas,
- * movimiento/detención, ni alertas del servidor.
+ * `GET /api/events?deviceId=&type=&from=&to=&limit=` — requiere API Key.
  *
- * Este módulo deja la interfaz PREPARADA (requisito 35) sin inventar datos:
- * `isEventsEndpointAvailable()` devuelve `false` y `listEvents()` rechaza con un
- * error explícito hasta que exista el endpoint.
- *
- * Endpoint propuesto para el backend (documentado en API_INTEGRATION.md):
- *
- *   GET /api/events?deviceId=&type=&from=&to=&limit=
- *   -> { success: true, count, events: [{ id, deviceId, type, timestamp,
- *        latitude, longitude, speed, message }] }
+ * El backend DERIVA los eventos a partir del historial real de posiciones
+ * (`gps_positions`) y del último contacto de cada dispositivo
+ * (`devices.last_seen_at`): exceso de velocidad, movimiento, detención, pérdida
+ * de señal GPS, batería baja y desconexión. No hay datos simulados.
  */
 
-import type { AppError } from '@/utils/errors';
-import type { GpsEvent, GpsEventType } from '@/types';
+import { getJson } from './client';
+import type { EventsResponse, GpsEvent, GpsEventType } from '@/types';
 
-export const EVENTS_ENDPOINT_AVAILABLE = false;
+export const EVENTS_ENDPOINT_AVAILABLE = true;
 
 export interface EventsQuery {
   deviceId?: string;
@@ -30,7 +22,7 @@ export interface EventsQuery {
   limit?: number;
 }
 
-/** Descripción del contrato que debería implementar el backend. */
+/** Descripción del contrato que implementa el backend. */
 export const EVENTS_ENDPOINT_CONTRACT = {
   method: 'GET',
   path: '/api/events',
@@ -39,18 +31,23 @@ export const EVENTS_ENDPOINT_CONTRACT = {
   response: '{ success: true, count: number, events: GpsEvent[] }',
 } as const;
 
-/** `true` si el backend ya ofrece el endpoint de eventos. */
+/** `true`: el backend ya ofrece el endpoint de eventos. */
 export function isEventsEndpointAvailable(): boolean {
   return EVENTS_ENDPOINT_AVAILABLE;
 }
 
-/** Lanza siempre: el endpoint no existe todavía en el backend. */
-export function listEvents(_query: EventsQuery = {}): Promise<GpsEvent[]> {
-  const error: AppError = {
-    kind: 'not_found',
-    message:
-      'El backend todavía no ofrece un endpoint de eventos. La interfaz está lista para integrarlo.',
-    detail: 'GET /api/events no está implementado en servidor-trackar.',
-  };
-  return Promise.reject(error);
+/** Lista eventos reales del backend, aplicando los filtros indicados. */
+export async function listEvents(
+  query: EventsQuery = {},
+  signal?: AbortSignal,
+): Promise<GpsEvent[]> {
+  const params: Record<string, unknown> = {};
+  if (query.deviceId) params.deviceId = query.deviceId;
+  if (query.type) params.type = query.type;
+  if (query.from) params.from = query.from;
+  if (query.to) params.to = query.to;
+  if (query.limit) params.limit = query.limit;
+
+  const data = await getJson<EventsResponse>('/events', params, signal);
+  return Array.isArray(data.events) ? data.events : [];
 }

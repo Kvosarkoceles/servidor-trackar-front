@@ -77,3 +77,15 @@ export async function getJson<T>(url: string, params?: Record<string, unknown>, 
   const response = await instance.get<T>(url, { params, signal });
   return response.data;
 }
+
+/** `PUT` con cuerpo JSON. */
+export async function putJson<T>(url: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  const response = await instance.put<T>(url, body, { signal });
+  return response.data;
+}
+
+/** `DELETE` sin cuerpo. */
+export async function deleteJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  const response = await instance.delete<T>(url, { signal });
+  return response.data;
+}

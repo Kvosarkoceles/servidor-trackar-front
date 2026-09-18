@@ -21,10 +21,11 @@ import { Card, CardBody, CardHeader, StatCard } from '@/components/ui/Card';
 import { ErrorState, InfoNote } from '@/components/ui/Feedback';
 import { SkeletonChart } from '@/components/ui/Skeleton';
 import { getFleetAggregate, todayRange, STATS_THRESHOLDS } from '@/api/statistics';
+import { useEventCounts } from '@/hooks/useEventCounts';
 import { useDevicesStore } from '@/stores/devicesStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { deviceLabel } from '@/utils/device';
-import { fmtDistance, fmtDuration, fmtRelative, fmtSpeed } from '@/utils/format';
+import { fmtDistance, fmtDuration, fmtNumber, fmtRelative, fmtSpeed } from '@/utils/format';
 import { toAppError, logError, type AppError } from '@/utils/errors';
 import { ROUTES } from '@/utils/constants';
 import type { FleetAggregate } from '@/api/statistics';
@@ -34,8 +35,7 @@ import type { FleetAggregate } from '@/api/statistics';
  *
  * Los contadores de dispositivos son DIRECTOS del backend. Las métricas de hoy
  * (distancia, velocidades, tiempos) se calculan a partir del historial real de
- * posiciones. La tarjeta de "Eventos de hoy" queda como no disponible porque el
- * backend no expone eventos (requisito 35).
+ * posiciones, y los eventos proceden de `GET /api/events`.
  */
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -102,6 +102,17 @@ export function DashboardPage() {
   const stopped = devices.filter((device) => device.status === 'stopped').length;
   const offline = devices.filter((device) => device.status === 'offline').length;
   const unknown = devices.filter((device) => device.status === 'unknown').length;
+
+  // Eventos de hoy derivados por el backend (`GET /api/events`).
+  const eventsRange = useMemo(() => {
+    const range = todayRange();
+    return { from: range.from.toISOString(), to: range.to.toISOString() };
+  }, []);
+  const {
+    events: todayEvents,
+    counts: eventCounts,
+    loading: eventsLoading,
+  } = useEventCounts(eventsRange);
 
   const statusData = [
     { name: 'En movimiento', value: moving, color: '#22c55e' },
@@ -206,9 +217,9 @@ export function DashboardPage() {
         />
         <StatCard
           label="Eventos hoy"
-          value="—"
-          hint="Endpoint no disponible"
-          icon={<AlertTriangle className="h-4 w-4 text-content-muted" />}
+          value={eventsLoading ? '…' : fmtNumber(todayEvents.length)}
+          hint="GET /api/events"
+          icon={<AlertTriangle className="h-4 w-4 text-status-stopped" />}
         />
       </div>
 
@@ -264,15 +275,19 @@ export function DashboardPage() {
         <Card>
           <CardHeader
             title="Eventos por categoría"
-            subtitle="Requiere GET /api/events en el backend"
+            subtitle="Detectados hoy por el backend"
             icon={<AlertTriangle className="h-4 w-4" />}
           />
           <CardBody>
-            <CategoryBarChart
-              data={[]}
-              emptyTitle="El backend no expone eventos"
-              emptyDescription="No existe un endpoint de eventos (exceso de velocidad, detenciones, geocercas…). La gráfica se activará automáticamente cuando esté disponible."
-            />
+            {eventsLoading ? (
+              <SkeletonChart />
+            ) : (
+              <CategoryBarChart
+                data={eventCounts}
+                emptyTitle="Sin eventos hoy"
+                emptyDescription="El backend no ha detectado eventos (exceso de velocidad, detenciones, batería baja, pérdida de GPS o desconexión) en el rango de hoy."
+              />
+            )}
           </CardBody>
         </Card>
       </div>

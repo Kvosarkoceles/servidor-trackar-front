@@ -332,27 +332,28 @@ export function SettingsPage() {
         </Card>
       </div>
 
-      <InfoNote title="Funcionalidades del backend que aún no existen">
+      <InfoNote title="Estado del backend">
         <ul className="list-disc space-y-1 pl-4">
           <li>
-            <span className="text-content">Login de usuarios / roles:</span> la API se protege con
-            una única API Key global.
+            <span className="text-content">Eventos y alertas:</span> activos con{' '}
+            <span className="font-mono">GET /api/events</span> (derivados del historial).
           </li>
           <li>
-            <span className="text-content">Eventos y alertas:</span> falta{' '}
-            <span className="font-mono">GET /api/events</span>.
+            <span className="text-content">Estadísticas:</span> las métricas se calculan a partir
+            del historial real de posiciones.
           </li>
           <li>
-            <span className="text-content">Estadísticas del servidor:</span> las métricas se calculan
-            en el cliente desde el historial.
-          </li>
-          <li>
-            <span className="text-content">Geocercas:</span> falta{' '}
+            <span className="text-content">Geocercas:</span> activas con{' '}
             <span className="font-mono">GET /api/geofences</span>.
           </li>
           <li>
-            <span className="text-content">Gestión de dispositivos:</span> no hay endpoints de alta,
-            edición o baja de dispositivos.
+            <span className="text-content">Gestión de dispositivos:</span> edición y baja con{' '}
+            <span className="font-mono">PUT</span>/{' '}
+            <span className="font-mono">DELETE /api/devices/:deviceId</span>.
+          </li>
+          <li>
+            <span className="text-content">Login de usuarios / roles:</span> la API se protege con
+            una única API Key global.
           </li>
           <li>
             <span className="text-content">Notificaciones push:</span> no existe integración de

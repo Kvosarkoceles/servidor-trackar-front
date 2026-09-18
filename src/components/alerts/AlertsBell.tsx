@@ -59,8 +59,8 @@ function AlertRow({ alert, onOpen }: { alert: Alert; onOpen: () => void }) {
  * Campana de alertas del header (requisito 14).
  *
  * Las alertas se derivan en el cliente a partir de datos reales del backend
- * (último contacto, velocidad y batería). El backend no envía notificaciones,
- * lo que se indica explícitamente en el pie del panel.
+ * (último contacto, velocidad y batería) para dar señales en vivo; el historial
+ * de eventos del servidor se muestra en la página `/eventos`.
  */
 export function AlertsBell() {
   const [open, setOpen] = useState(false);
@@ -149,9 +149,8 @@ export function AlertsBell() {
             </div>
 
             <p className="border-t border-line px-4 py-2 text-[10px] leading-relaxed text-content-muted">
-              Derivadas en el cliente a partir de la última posición reportada. El backend no expone
-              todavía un endpoint de notificaciones ({' '}
-              <span className="font-mono">GET /api/events</span> ).
+              Señales en vivo derivadas de la última posición reportada. El historial completo de
+              eventos está en <span className="font-mono">/eventos</span> (GET /api/events).
             </p>
           </div>
         </>

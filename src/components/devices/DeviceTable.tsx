@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, Crosshair, History, Pencil, ServerCog } from 'lucide-react';
+import { ArrowDown, ArrowUp, Crosshair, History, Pencil, Trash2 } from 'lucide-react';
 
 import { DeviceStatusBadge } from './DeviceStatusBadge';
+import { deleteDevice, updateDevice } from '@/api/devices';
 import { Button } from '@/components/ui/Button';
-import { InfoNote, Modal } from '@/components/ui/Feedback';
+import { Modal } from '@/components/ui/Feedback';
+import { Field, Input, Toggle } from '@/components/ui/Field';
 import { Pagination, Table } from '@/components/tables/Table';
 import { SkeletonTable } from '@/components/ui/Skeleton';
+import { useDevicesStore } from '@/stores/devicesStore';
 import { deviceLabel } from '@/utils/device';
 import { fmtBattery, fmtCoord, fmtRelative, fmtSpeed } from '@/utils/format';
+import { toAppError, logError, type AppError } from '@/utils/errors';
 import { cn } from '@/utils/cn';
 import type { DeviceWithStatus } from '@/types';
 
@@ -30,6 +34,69 @@ export function DeviceTable({ devices, loading = false, onView, onHistory, onCen
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [editDevice, setEditDevice] = useState<DeviceWithStatus | null>(null);
+  const [name, setName] = useState('');
+  const [uniqueId, setUniqueId] = useState('');
+  const [active, setActive] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const fetchDevices = useDevicesStore((state) => state.fetchDevices);
+
+  // Inicializa el formulario cada vez que se abre el modal.
+  useEffect(() => {
+    if (!editDevice) return;
+    setName(editDevice.name ?? '');
+    setUniqueId(editDevice.uniqueId ?? '');
+    setActive(editDevice.active);
+    setFormError(null);
+  }, [editDevice]);
+
+  const closeModal = () => setEditDevice(null);
+
+  const save = async () => {
+    if (!editDevice) return;
+    setSaving(true);
+    setFormError(null);
+
+    try {
+      await updateDevice(editDevice.deviceId, {
+        name: name.trim() === '' ? null : name.trim(),
+        uniqueId: uniqueId.trim() === '' ? null : uniqueId.trim(),
+        active,
+      });
+      await fetchDevices();
+      closeModal();
+    } catch (caught) {
+      const appError = (caught as AppError)?.kind ? (caught as AppError) : toAppError(caught);
+      logError('DeviceTable.save', caught);
+      setFormError(appError.backendMessage ?? appError.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!editDevice) return;
+    const confirmed = window.confirm(
+      `¿Eliminar el dispositivo ${deviceLabel(editDevice)} y todo su historial de posiciones?`,
+    );
+    if (!confirmed) return;
+
+    setSaving(true);
+    setFormError(null);
+
+    try {
+      await deleteDevice(editDevice.deviceId);
+      await fetchDevices();
+      closeModal();
+    } catch (caught) {
+      const appError = (caught as AppError)?.kind ? (caught as AppError) : toAppError(caught);
+      logError('DeviceTable.remove', caught);
+      setFormError(appError.backendMessage ?? appError.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const sorted = useMemo(() => {
     const factor = direction === 'asc' ? 1 : -1;
@@ -197,44 +264,78 @@ export function DeviceTable({ devices, loading = false, onView, onHistory, onCen
 
       <Modal
         open={editDevice !== null}
-        onClose={() => setEditDevice(null)}
+        onClose={closeModal}
         title="Editar dispositivo"
         size="md"
+        footer={
+          <>
+            <Button
+              variant="danger"
+              onClick={() => void remove()}
+              disabled={saving}
+              icon={<Trash2 className="h-3.5 w-3.5" />}
+            >
+              Eliminar
+            </Button>
+            <Button variant="ghost" onClick={closeModal} disabled={saving}>
+              Cancelar
+            </Button>
+            <Button onClick={() => void save()} loading={saving}>
+              Guardar cambios
+            </Button>
+          </>
+        }
       >
         <div className="space-y-3">
-          <InfoNote title="Función no disponible en el backend">
-            El backend <code className="font-mono">servidor-trackar</code> expone actualmente solo
-            <code className="mx-1 font-mono">GET /api/devices</code>,{' '}
-            <code className="font-mono">GET /api/positions/:deviceId</code> y{' '}
-            <code className="font-mono">GET /api/positions/:deviceId/latest</code>. No existe ningún
-            endpoint para crear, renombrar o desactivar dispositivos, por lo que este formulario no
-            se envía a ningún servidor.
-          </InfoNote>
-
-          <div>
-            <p className="text-xs font-semibold text-content">Endpoint necesario</p>
-            <pre className="mt-1 overflow-x-auto rounded-lg border border-line bg-surface p-3 font-mono text-[11px] text-content-muted">
-{`PUT /api/devices/:deviceId
-Authorization: Bearer <API_KEY>
-Content-Type: application/json
-
-{ "name": "string", "uniqueId": "string", "active": true }`}
-            </pre>
-          </div>
-
           {editDevice ? (
             <div className="rounded-lg border border-line p-3 text-xs text-content-muted">
               <p>
                 Dispositivo: <span className="text-content">{deviceLabel(editDevice)}</span>
               </p>
               <p className="font-mono">{editDevice.deviceId}</p>
+              <p className="mt-1">
+                El identificador es inmutable: identifica la ingesta de Traccar Client.
+              </p>
             </div>
           ) : null}
 
-          <div className="flex items-center gap-2 text-[11px] text-content-muted">
-            <ServerCog className="h-3.5 w-3.5" aria-hidden />
-            Documentado en API_INTEGRATION.md
+          <Field label="Nombre" hint="Nombre visible en la interfaz (opcional).">
+            {(id) => (
+              <Input
+                id={id}
+                value={name}
+                maxLength={120}
+                placeholder="p. ej. Camioneta 1"
+                onChange={(event) => setName(event.target.value)}
+              />
+            )}
+          </Field>
+
+          <Field label="IMEI / UID" hint="Identificador único del equipo (opcional).">
+            {(id) => (
+              <Input
+                id={id}
+                value={uniqueId}
+                maxLength={128}
+                onChange={(event) => setUniqueId(event.target.value)}
+              />
+            )}
+          </Field>
+
+          <div className="rounded-lg border border-line p-3">
+            <Toggle
+              checked={active}
+              onChange={setActive}
+              label="Dispositivo activo"
+              description="Desactívalo para excluirlo de la operación sin borrar su historial."
+            />
           </div>
+
+          {formError ? (
+            <p role="alert" className="text-xs text-status-offline">
+              {formError}
+            </p>
+          ) : null}
         </div>
       </Modal>
     </div>

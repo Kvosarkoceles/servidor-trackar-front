@@ -1,14 +1,10 @@
 /**
  * Alertas del header.
  *
- * ⚠ El backend NO envía notificaciones: no existe endpoint de alertas ni de
- * eventos. Las alertas que se muestran aquí se DERIVAN en el cliente a partir
- * de datos reales (último contacto, velocidad y batería de la última posición)
- * y se etiquetan con `source: 'derived'` para no aparentar que vienen del
- * servidor (requisitos 14 y 35).
- *
- * Cuando el backend implemente `GET /api/events`, se podrán añadir alertas con
- * `source: 'server'` sin cambiar la interfaz.
+ * El backend no envía notificaciones push, pero SÍ expone `GET /api/events` con
+ * el historial de eventos derivados. La campana muestra señales en vivo
+ * DERIVADAS en el cliente (último contacto, velocidad y batería de la última
+ * posición) con `source: 'derived'`; el historial completo está en `/eventos`.
  */
 
 import { create } from 'zustand';

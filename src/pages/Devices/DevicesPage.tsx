@@ -28,8 +28,8 @@ const FILTERS: Array<{ value: Filter; label: string }> = [
  * Listado de dispositivos (requisito 8).
  *
  * Datos: `GET /api/devices`. Incluye búsqueda, filtro por estado, orden,
- * paginación y accesos a detalle / historial / centrado en el mapa.
- * No se ofrece crear/editar/eliminar porque el backend no expone esos endpoints.
+ * paginación y accesos a detalle / historial / centrado en el mapa. La edición y
+ * eliminación de dispositivos usan `PUT`/`DELETE /api/devices/:deviceId`.
  */
 export function DevicesPage() {
   const navigate = useNavigate();
