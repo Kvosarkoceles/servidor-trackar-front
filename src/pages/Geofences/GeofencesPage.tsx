@@ -177,6 +177,12 @@ Authorization: ${GEOFENCES_ENDPOINT_CONTRACT.auth}
                 con <span className="font-mono">active = true</span>.
               </p>
             </div>
+
+            <p className="text-[11px] leading-relaxed text-content-muted">
+              Con ese contrato, la capa ya dibuja los círculos (
+              <span className="font-mono">type: circle</span>) y polígonos (
+              <span className="font-mono">type: polygon</span>) sin cambios adicionales.
+            </p>
           </CardBody>
         </Card>
       </div>

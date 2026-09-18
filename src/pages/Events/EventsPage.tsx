@@ -294,6 +294,15 @@ Authorization: Bearer <API_KEY>
               8601), limit (máx. 2000, por defecto 200). Orden: más reciente primero.
             </p>
           </div>
+
+          <p className="text-[11px] leading-relaxed text-content-muted">
+            Con ese contrato, la tabla muestra los eventos reales derivados por el backend (
+            <span className="font-mono">overspeed</span>,{' '}
+            <span className="font-mono">movement</span>, <span className="font-mono">stop</span>,{' '}
+            <span className="font-mono">gps_lost</span>,{' '}
+            <span className="font-mono">low_battery</span> y{' '}
+            <span className="font-mono">disconnected</span>) sin cambios adicionales.
+          </p>
         </CardBody>
       </Card>
     </div>
