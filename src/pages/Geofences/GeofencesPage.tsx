@@ -167,11 +167,16 @@ Authorization: ${GEOFENCES_ENDPOINT_CONTRACT.auth}
 }`}
             </pre>
 
-            <p className="text-[11px] leading-relaxed text-content-muted">
-              Con ese contrato, la capa ya dibuja los círculos (
-              <span className="font-mono">type: circle</span>) y polígonos (
-              <span className="font-mono">type: polygon</span>) sin cambios adicionales.
-            </p>
+            <div className="grid gap-2 text-[11px] text-content-muted sm:grid-cols-2">
+              <p>
+                <span className="text-content">Query:</span> ninguna · orden por{' '}
+                <span className="font-mono">id</span> ascendente.
+              </p>
+              <p>
+                <span className="text-content">Solo activas:</span> el backend devuelve las zonas
+                con <span className="font-mono">active = true</span>.
+              </p>
+            </div>
           </CardBody>
         </Card>
       </div>

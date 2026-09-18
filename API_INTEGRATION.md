@@ -284,32 +284,43 @@ Implementado. El backend **deriva** los eventos del historial real
 
 **Página `/eventos`:** filtros y tabla conectados a datos reales.
 
-**Contrato propuesto:**
+**Contrato del endpoint:**
+
+| | |
+|---|---|
+| **Método** | `GET` |
+| **Autenticación** | API Key (`Bearer` o `X-API-Key`) |
+| **Query** | `deviceId?`, `type?` (`overspeed`, `movement`, `stop`, `gps_lost`, `low_battery`, `disconnected`), `from?` (ISO 8601), `to?` (ISO 8601), `limit?` (1–2000, por defecto 200) |
+| **Orden** | `timestamp` descendente (más reciente primero) |
 
 ```
-GET /api/events?deviceId=<id>&type=<tipo>&from=<ISO>&to=<ISO>&limit=<n>
+GET /api/events?deviceId=123456&type=overspeed&from=2026-09-18T00:00:00Z&limit=200
 Authorization: Bearer <API_KEY>
 
 200 {
   "success": true,
-  "count": 12,
+  "count": 1,
   "events": [
     {
-      "id": "1",
+      "id": "overspeed:123456:2026-09-18T10:23:00.000Z",
       "deviceId": "123456",
-      "type": "overspeed | movement | stop | gps_lost | low_battery | disconnected",
-      "timestamp": "2026-09-18T10:23:00Z",
+      "type": "overspeed",
+      "timestamp": "2026-09-18T10:23:00.000Z",
       "latitude": 19.4326,
       "longitude": -99.1332,
       "speed": 112.4,
-      "message": "Exceso de velocidad"
+      "message": "Exceso de velocidad (112.4 km/h)"
     }
   ]
 }
+
+400 { "success": false, "error": "Invalid type" }
 ```
 
-**Alternativa sin nueva tabla:** calcular los eventos al vuelo desde `gps_positions`
-(velocidad > umbral, brecha > N minutos entre posiciones, `battery <= 20`…).
+**Detección:** los eventos se calculan **al vuelo** sobre `gps_positions` y
+`devices.last_seen_at` (no hay tabla de eventos), con umbrales configurables:
+`OVERSPEED_KMH`, `LOW_BATTERY_PERCENT`, `GPS_LOST_MINUTES`,
+`OFFLINE_THRESHOLD_SECONDS` y `MOVING_SPEED_KMH`.
 
 **Nota:** la campana del header sigue mostrando *alertas en vivo derivadas en el cliente*
 (`source: 'derived'`) a partir de datos reales (dispositivo offline, exceso de velocidad,
@@ -328,12 +339,36 @@ cuya lógica replica la del servidor:
 
 **Coste:** 1 request por dispositivo y rango. Se acota con
 `VITE_DASHBOARD_MAX_DEVICES` (25 por defecto) y concurrencia `VITE_API_CONCURRENCY` (4).
-Con muchos dispositivos conviene un endpoint de agregados en el servidor:
+
+**Contrato del endpoint** (implementado, por dispositivo):
+
+| | |
+|---|---|
+| **Método** | `GET` |
+| **Autenticación** | API Key (`Bearer` o `X-API-Key`) |
+| **Query** | `deviceId` (obligatorio), `from?` (ISO 8601), `to?` (ISO 8601), `limit?` (1–5000) |
 
 ```
-GET /api/statistics?deviceId=<id>&from=<ISO>&to=<ISO>
-200 { "success": true, "stats": { "distanceKm": 0, "maxSpeedKmh": 0, "avgSpeedKmh": 0,
-      "movingSeconds": 0, "stoppedSeconds": 0 } }
+GET /api/statistics?deviceId=123456&from=2026-09-18T00:00:00Z&to=2026-09-18T23:59:59Z
+Authorization: Bearer <API_KEY>
+
+200 {
+  "success": true,
+  "deviceId": "123456",
+  "stats": {
+    "distanceKm": 12.4,
+    "maxSpeedKmh": 88.2,
+    "avgSpeedKmh": 41.5,
+    "movingSeconds": 3120,
+    "stoppedSeconds": 740,
+    "spanSeconds": 3860,
+    "positionCount": 240,
+    "distanceByBucket": [],
+    "speedByBucket": []
+  }
+}
+
+400 { "success": false, "error": "Missing deviceId" }
 ```
 
 ### 6.3 Geocercas — `GET /api/geofences` ✅
@@ -341,15 +376,28 @@ GET /api/statistics?deviceId=<id>&from=<ISO>&to=<ISO>
 Implementado. Las zonas se guardan en la tabla `geofences` y `GeofenceLayer` las
 dibuja sobre el mapa (círculos y polígonos).
 
+**Contrato del endpoint:**
+
+| | |
+|---|---|
+| **Método** | `GET` |
+| **Autenticación** | API Key (`Bearer` o `X-API-Key`) |
+| **Query** | — |
+| **Orden** | `id` ascendente · solo zonas con `active = true` |
+
 ```
 GET /api/geofences
+Authorization: Bearer <API_KEY>
+
 200 {
   "success": true,
   "geofences": [
     { "id": "1", "name": "Bodega", "type": "circle",
       "center": { "lat": 19.43, "lng": -99.13 }, "radiusMeters": 300, "color": "#2f83f6" },
     { "id": "2", "name": "Ruta", "type": "polygon",
-      "points": [{ "lat": 19.44, "lng": -99.14 }, { "lat": 19.45, "lng": -99.12 }] }
+      "points": [{ "lat": 19.44, "lng": -99.14 }, { "lat": 19.45, "lng": -99.12 },
+                 { "lat": 19.43, "lng": -99.11 }],
+      "color": null }
   ]
 }
 ```
@@ -357,14 +405,30 @@ GET /api/geofences
 ### 6.4 Gestión de dispositivos ✅ (`PUT`/`DELETE`)
 
 Implementado: el botón *Editar* de `/dispositivos` permite renombrar, cambiar el
-`uniqueId`, activar/desactivar y eliminar el dispositivo. Contrato:
+`uniqueId`, activar/desactivar y eliminar el dispositivo.
+
+**Contrato del endpoint:**
+
+| | |
+|---|---|
+| **Método** | `PUT` (editar) · `DELETE` (eliminar) |
+| **Autenticación** | API Key (`Bearer` o `X-API-Key`) |
+| **Cuerpo** | `{ name?, uniqueId?, active? }` (al menos un campo) |
+| **Nota** | El `deviceId` es inmutable. `DELETE` borra en cascada el historial. |
 
 ```
-PUT /api/devices/:deviceId
+PUT /api/devices/123456
 Authorization: Bearer <API_KEY>
 Content-Type: application/json
 
-{ "name": "string", "uniqueId": "string", "active": true }
+{ "name": "Camioneta 1", "uniqueId": "860000000000001", "active": true }
+
+200 { "success": true, "device": { "deviceId": "123456", ... } }
+404 { "success": false, "error": "Device not found" }
+400 { "success": false, "error": "No updatable fields provided" }
+
+DELETE /api/devices/123456
+200 { "success": true, "message": "Device deleted", "deviceId": "123456" }
 ```
 
 ### 6.5 Notificaciones push ❌

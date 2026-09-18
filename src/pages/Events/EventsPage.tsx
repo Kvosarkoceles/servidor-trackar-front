@@ -287,13 +287,11 @@ Authorization: Bearer <API_KEY>
 
           <div className="grid gap-2 text-[11px] text-content-muted sm:grid-cols-2">
             <p>
-              <span className="text-content">Tipos esperados:</span>{' '}
-              {EVENT_TYPE_ORDER.join(', ')}
+              <span className="text-content">Tipos:</span> {EVENT_TYPE_ORDER.join(', ')}
             </p>
             <p>
-              <span className="text-content">Alternativa:</span> detección en el backend al vuelo
-              sobre <span className="font-mono">gps_positions</span> (velocidad &gt; umbral, brecha
-              entre posiciones superior a N minutos…).
+              <span className="text-content">Query:</span> deviceId, type, from (ISO 8601), to (ISO
+              8601), limit (máx. 2000, por defecto 200). Orden: más reciente primero.
             </p>
           </div>
         </CardBody>
