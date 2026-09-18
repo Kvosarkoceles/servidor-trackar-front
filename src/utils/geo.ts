@@ -53,6 +53,26 @@ export function boundsOf(points: LatLng[]): { minLat: number; minLng: number; ma
   return { minLat, minLng, maxLat, maxLng };
 }
 
+/**
+ * Puntos representativos de una geocerca para encuadrar el mapa.
+ *
+ * Círculo → su centro · Polígono → sus vértices. Devuelve `[]` si la zona no
+ * trae la geometría esperada (p. ej. un círculo sin `center`).
+ */
+export function geofencePoints(geofence: {
+  type: string;
+  center?: LatLng | null;
+  points?: LatLng[] | null;
+}): LatLng[] {
+  if (geofence.type === 'circle' && geofence.center) {
+    return [geofence.center];
+  }
+  if (geofence.type === 'polygon' && Array.isArray(geofence.points)) {
+    return geofence.points;
+  }
+  return [];
+}
+
 /** Comprueba que unas coordenadas son válidas y no nulas. */
 export function isValidCoordinate(lat: unknown, lng: unknown): boolean {
   return (

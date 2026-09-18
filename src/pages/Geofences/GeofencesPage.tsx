@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Shapes, ServerCog } from 'lucide-react';
 
 import { ClusterLayer } from '@/components/maps/ClusterLayer';
@@ -10,6 +10,7 @@ import { MapView } from '@/components/maps/MapView';
 import { GEOFENCES_ENDPOINT_CONTRACT, listGeofences } from '@/api/geofences';
 import { useDevicesStore } from '@/stores/devicesStore';
 import { toAppError, logError, type AppError } from '@/utils/errors';
+import { geofencePoints, type LatLng } from '@/utils/geo';
 import type { Geofence } from '@/types';
 
 /**
@@ -55,9 +56,22 @@ export function GeofencesPage() {
 
   useEffect(() => () => controllerRef.current?.abort(), []);
 
-  const points = devices
-    .filter((device) => device.coordinates !== null)
-    .map((device) => device.coordinates!);
+  /**
+   * Puntos del encuadre automático.
+   *
+   * Esta página gira en torno a las zonas, así que se encuadran las geocercas
+   * (centro del círculo / vértices del polígono). Si no hay zonas, se usan los
+   * dispositivos. Incluir ambos cuando un dispositivo está lejos alejaría
+   * demasiado la vista y las zonas quedarían del tamaño de un píxel.
+   */
+  const points = useMemo<LatLng[]>(() => {
+    const zonePoints = geofences.flatMap(geofencePoints);
+    if (zonePoints.length > 0) return zonePoints;
+
+    return devices
+      .filter((device) => device.coordinates !== null)
+      .map((device) => device.coordinates!);
+  }, [devices, geofences]);
 
   return (
     <div className="space-y-4 p-4">
@@ -128,7 +142,7 @@ export function GeofencesPage() {
             icon={<Shapes className="h-4 w-4" />}
           />
           <div className="h-[520px]">
-            <MapView className="h-full rounded-none" fitPoints={points} autoFit>
+            <MapView className="h-full rounded-none" fitPoints={points} autoFit fitLabel="Encuadrar todas las zonas">
               <ClusterLayer devices={devices} selectedId={selectedId} onSelect={selectDevice} />
               <GeofenceLayer geofences={geofences} />
             </MapView>

@@ -33,6 +33,8 @@ interface MapViewProps {
   fitPoints?: LatLng[];
   /** `false` desactiva el encuadre automático (el botón "Encuadrar" sigue activo). */
   autoFit?: boolean;
+  /** Etiqueta accesible del botón de encuadre (`fitPoints`). */
+  fitLabel?: string;
   /** Recentrado imperativo (p. ej. al pulsar "centrar" en la lista). */
   focus?: MapFocus | null;
   /** Muestra los controles flotantes. */
@@ -109,9 +111,11 @@ function ResizeObserverEffect() {
 function Controls({
   fitPoints,
   fitDisabled,
+  fitLabel = 'Encuadrar todos los dispositivos',
 }: {
   fitPoints: LatLng[];
   fitDisabled: boolean;
+  fitLabel?: string;
 }) {
   const map = useMap();
   const geolocation = useGeolocation();
@@ -184,7 +188,7 @@ function Controls({
           className="h-9 w-9 border-line bg-panel/95 backdrop-blur"
           disabled={fitDisabled}
           onClick={fit}
-          aria-label="Encuadrar todos los dispositivos"
+          aria-label={fitLabel}
           title="Encuadrar todos"
         >
           <Scan className="h-4 w-4" />
@@ -272,6 +276,7 @@ export function MapView({
   zoom = DEFAULT_MAP_ZOOM,
   fitPoints,
   autoFit = true,
+  fitLabel,
   focus = null,
   controls = true,
   overlay,
@@ -306,7 +311,7 @@ export function MapView({
 
         {children}
 
-        {controls ? <Controls fitPoints={points} fitDisabled={fitDisabled} /> : null}
+        {controls ? <Controls fitPoints={points} fitDisabled={fitDisabled} fitLabel={fitLabel} /> : null}
       </MapContainer>
 
       {overlay ? (

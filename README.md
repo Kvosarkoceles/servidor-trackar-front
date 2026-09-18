@@ -22,7 +22,7 @@ Centro de monitoreo GPS (React + Vite + TypeScript) que consume la API real del 
 | Historial y reproducción | `/historial` | ✅ polilínea + reproductor x1–x8 |
 | Estadísticas | `/estadisticas` | ✅ calculadas desde el historial |
 | Eventos | `/eventos` | ⏳ interfaz lista (falta `GET /api/events`) |
-| Geocercas | `/geocercas` | ⏳ capa lista (falta `GET /api/geofences`) |
+| Geocercas | `/geocercas` | ✅ círculos y polígonos reales sobre el mapa |
 | Configuración | `/configuracion` | ✅ preferencias + diagnóstico |
 
 Otros elementos: búsqueda global, campana de alertas, modo oscuro/claro, skeletons de
@@ -81,8 +81,7 @@ El backend se analizó antes de escribir código (`api/**`, `src/services/**`,
 - **Endpoints disponibles:** `GET /api/health`, `GET /api/devices`,
   `GET /api/positions/:deviceId`, `GET /api/positions/:deviceId/latest`,
   `POST|GET /api/gps` (ingesta, no usada por el frontend).
-- **No existen:** eventos, estadísticas, geocercas, gestión de dispositivos,
-  notificaciones, login de usuarios ni WebSocket/SSE/MQTT.
+- **No existen:** notificaciones, login de usuarios ni WebSocket/SSE/MQTT.
 
 Pasos para apuntar el frontend al backend:
 
@@ -198,7 +197,9 @@ Separación estricta: **componentes visuales** (`components/`), **lógica de dom
   mantener el rendimiento con cientos de dispositivos.
 - **Recorridos:** `TrailPolyline` dibuja el histórico por tramos, coloreados por velocidad
   (azul normal, ámbar > 60 km/h, rojo > 100 km/h) con marcadores de inicio y fin.
-- **Geocercas:** `GeofenceLayer` soporta círculos y polígonos (a la espera del endpoint).
+- **Geocercas:** `GeofenceLayer` dibuja los círculos y polígonos de `GET /api/geofences`
+  (color y etiqueta incluidos). El encuadre automático de la página se calcula con la
+  geometría de las zonas (centro del círculo / vértices del polígono).
 - **Geocodificación:** desactivada por defecto (se muestran coordenadas). Opcional vía
   Nominatim con caché (`src/utils/geocode.ts`).
 
