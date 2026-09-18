@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Variables de tema (tripletas RGB para el modificador de opacidad de Tailwind) */
+:root {
+  --panel: 255 255 255;
+  --panel-soft: 248 250 252;
+  --surface: 241 245 249;
+  --line: 226 232 240;
+  --content: 15 23 42;
+  --content-muted: 100 116 139;
+}
+
+.dark {
+  --panel: 11 18 32;
+  --panel-soft: 17 26 44;
+  --surface: 15 23 42;
+  --line: 30 41 59;
+  --content: 226 232 240;
+  --content-muted: 148 163 184;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-surface text-content antialiased;
+  }
+
+  *:focus-visible {
+    @apply outline-none ring-2 ring-brand-500 ring-offset-2 ring-offset-surface;
+  }
+}
+
+@layer components {
+  /* Superficie base de tarjetas y paneles */
+  .panel {
+    @apply rounded-xl border border-line bg-panel shadow-panel;
+  }
+
+  .panel-header {
+    @apply flex items-center justify-between gap-2 border-b border-line px-4 py-3;
+  }
+
+  .panel-title {
+    @apply text-sm font-semibold tracking-tight text-content;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--line)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--line));
+    border-radius: 9999px;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Leaflet: adaptación al tema oscuro                                         */
+/* -------------------------------------------------------------------------- */
+.leaflet-container {
+  background: rgb(var(--surface));
+  font-family: inherit;
+  z-index: 0;
+}
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: rgb(var(--panel));
+  color: rgb(var(--content));
+  border: 1px solid rgb(var(--line));
+  box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.5);
+}
+
+.leaflet-popup-content {
+  margin: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.leaflet-container a.leaflet-popup-close-button {
+  color: rgb(var(--content-muted));
+}
+
+.leaflet-bar,
+.leaflet-control-attribution {
+  background: rgb(var(--panel)) !important;
+  color: rgb(var(--content-muted)) !important;
+  border-color: rgb(var(--line)) !important;
+}
+
+.leaflet-bar a {
+  background: rgb(var(--panel)) !important;
+  color: rgb(var(--content)) !important;
+  border-bottom-color: rgb(var(--line)) !important;
+}
+
+.leaflet-bar a:hover {
+  background: rgb(var(--panel-soft)) !important;
+}
+
+.leaflet-control-attribution a {
+  color: rgb(var(--content-muted)) !important;
+}
+
+/* Marcadores: sin fondo ni borde por defecto de Leaflet */
+.device-marker-icon {
+  background: transparent;
+  border: none;
+}
+
+/* Oscurecer ligeramente el mapa base cuando el tema es oscuro */
+.dark .leaflet-tile-pane {
+  filter: brightness(0.85) contrast(1.05) saturate(0.9);
+}
